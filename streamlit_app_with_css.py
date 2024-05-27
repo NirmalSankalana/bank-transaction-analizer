@@ -1,276 +1,301 @@
-#######################
-# Import libraries
 import streamlit as st
 import pandas as pd
 import altair as alt
 import plotly.express as px
+import plotly.graph_objects as go
+import folium
+import networkx as nx
+from streamlit_folium import st_folium
+import numpy as np
 
-#######################
+metric_style = """
+    <style>
+        .metric-box {
+            background-color: #f0f2f6;
+            border-radius: 5px;
+            padding: 10px;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .metric-title {
+            font-size: 16px;
+            color: #333;
+        }
+        .metric-value {
+            font-size: 32px;
+            color: #1f77b4;
+        }
+    </style>
+"""
+
 # Page configuration
 st.set_page_config(
-    page_title="US Population Dashboard",
-    page_icon="🏂",
+    page_title="Bank Transactions Dashboard",
+    page_icon="🏦",
     layout="wide",
     initial_sidebar_state="expanded")
 
 alt.themes.enable("dark")
 
-#######################
-# CSS styling
-st.markdown("""
-<style>
-
-[data-testid="block-container"] {
-    padding-left: 2rem;
-    padding-right: 2rem;
-    padding-top: 1rem;
-    padding-bottom: 0rem;
-    margin-bottom: -7rem;
-}
-
-[data-testid="stVerticalBlock"] {
-    padding-left: 0rem;
-    padding-right: 0rem;
-}
-
-[data-testid="stMetric"] {
-    background-color: #393939;
-    text-align: center;
-    padding: 15px 0;
-}
-
-[data-testid="stMetricLabel"] {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-[data-testid="stMetricDeltaIcon-Up"] {
-    position: relative;
-    left: 38%;
-    -webkit-transform: translateX(-50%);
-    -ms-transform: translateX(-50%);
-    transform: translateX(-50%);
-}
-
-[data-testid="stMetricDeltaIcon-Down"] {
-    position: relative;
-    left: 38%;
-    -webkit-transform: translateX(-50%);
-    -ms-transform: translateX(-50%);
-    transform: translateX(-50%);
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-
-#######################
-# Load data
-df_reshaped = pd.read_csv('data/us-population-2010-2019-reshaped.csv')
-
+# Load the data
+df = pd.read_csv('data/bank-transactions.csv')
 
 #######################
 # Sidebar
 with st.sidebar:
-    st.title('🏂 US Population Dashboard')
-    
-    year_list = list(df_reshaped.year.unique())[::-1]
-    
-    selected_year = st.selectbox('Select a year', year_list)
-    df_selected_year = df_reshaped[df_reshaped.year == selected_year]
-    df_selected_year_sorted = df_selected_year.sort_values(by="population", ascending=False)
+    st.title('Bank Transactions Dashboard')
+    names = st.multiselect('Select a name', df['Sender Name'].unique())
+    phone_numbers = st.multiselect(
+        'Select a phone number', df['Sender Phone Number'].unique())
+    acc_no = st.multiselect('Select an account number',
+                            df['Sender Account'].unique())
 
-    color_theme_list = ['blues', 'cividis', 'greens', 'inferno', 'magma', 'plasma', 'reds', 'rainbow', 'turbo', 'viridis']
-    selected_color_theme = st.selectbox('Select a color theme', color_theme_list)
+# Start with the full DataFrame
+filtered_df = df.copy()
 
-
-#######################
-# Plots
-
-# Heatmap
-def make_heatmap(input_df, input_y, input_x, input_color, input_color_theme):
-    heatmap = alt.Chart(input_df).mark_rect().encode(
-            y=alt.Y(f'{input_y}:O', axis=alt.Axis(title="Year", titleFontSize=18, titlePadding=15, titleFontWeight=900, labelAngle=0)),
-            x=alt.X(f'{input_x}:O', axis=alt.Axis(title="", titleFontSize=18, titlePadding=15, titleFontWeight=900)),
-            color=alt.Color(f'max({input_color}):Q',
-                             legend=None,
-                             scale=alt.Scale(scheme=input_color_theme)),
-            stroke=alt.value('black'),
-            strokeWidth=alt.value(0.25),
-        ).properties(width=900
-        ).configure_axis(
-        labelFontSize=12,
-        titleFontSize=12
-        ) 
-    # height=300
-    return heatmap
-
-# Choropleth map
-def make_choropleth(input_df, input_id, input_column, input_color_theme):
-    choropleth = px.choropleth(input_df, locations=input_id, color=input_column, locationmode="USA-states",
-                               color_continuous_scale=input_color_theme,
-                               range_color=(0, max(df_selected_year.population)),
-                               scope="usa",
-                               labels={'population':'Population'}
-                              )
-    choropleth.update_layout(
-        template='plotly_dark',
-        plot_bgcolor='rgba(0, 0, 0, 0)',
-        paper_bgcolor='rgba(0, 0, 0, 0)',
-        margin=dict(l=0, r=0, t=0, b=0),
-        height=350
-    )
-    return choropleth
+# Apply filters conditionally
+if names:
+    filtered_df = filtered_df[filtered_df['Sender Name'].isin(names)]
+if phone_numbers:
+    filtered_df = filtered_df[filtered_df['Sender Phone Number'].isin(
+        phone_numbers)]
+if acc_no:
+    filtered_df = filtered_df[filtered_df['Sender Account'].isin(acc_no)]
 
 
-# Donut chart
-def make_donut(input_response, input_text, input_color):
-  if input_color == 'blue':
-      chart_color = ['#29b5e8', '#155F7A']
-  if input_color == 'green':
-      chart_color = ['#27AE60', '#12783D']
-  if input_color == 'orange':
-      chart_color = ['#F39C12', '#875A12']
-  if input_color == 'red':
-      chart_color = ['#E74C3C', '#781F16']
-    
-  source = pd.DataFrame({
-      "Topic": ['', input_text],
-      "% value": [100-input_response, input_response]
-  })
-  source_bg = pd.DataFrame({
-      "Topic": ['', input_text],
-      "% value": [100, 0]
-  })
-    
-  plot = alt.Chart(source).mark_arc(innerRadius=45, cornerRadius=25).encode(
-      theta="% value",
-      color= alt.Color("Topic:N",
-                      scale=alt.Scale(
-                          #domain=['A', 'B'],
-                          domain=[input_text, ''],
-                          # range=['#29b5e8', '#155F7A']),  # 31333F
-                          range=chart_color),
-                      legend=None),
-  ).properties(width=130, height=130)
-    
-  text = plot.mark_text(align='center', color="#29b5e8", font="Lato", fontSize=32, fontWeight=700, fontStyle="italic").encode(text=alt.value(f'{input_response} %'))
-  plot_bg = alt.Chart(source_bg).mark_arc(innerRadius=45, cornerRadius=20).encode(
-      theta="% value",
-      color= alt.Color("Topic:N",
-                      scale=alt.Scale(
-                          # domain=['A', 'B'],
-                          domain=[input_text, ''],
-                          range=chart_color),  # 31333F
-                      legend=None),
-  ).properties(width=130, height=130)
-  return plot_bg + plot + text
-
-# Convert population to text 
-def format_number(num):
-    if num > 1000000:
-        if not num % 1000000:
-            return f'{num // 1000000} M'
-        return f'{round(num / 1000000, 1)} M'
-    return f'{num // 1000} K'
-
-# Calculation year-over-year population migrations
-def calculate_population_difference(input_df, input_year):
-  selected_year_data = input_df[input_df['year'] == input_year].reset_index()
-  previous_year_data = input_df[input_df['year'] == input_year - 1].reset_index()
-  selected_year_data['population_difference'] = selected_year_data.population.sub(previous_year_data.population, fill_value=0)
-  return pd.concat([selected_year_data.states, selected_year_data.id, selected_year_data.population, selected_year_data.population_difference], axis=1).sort_values(by="population_difference", ascending=False)
+def get_coordinates(branch):
+    coordinates = branch.split(', ')
+    coordinates = [eval(x) for x in coordinates]
+    return coordinates
 
 
-#######################
-# Dashboard Main Panel
-col = st.columns((1.5, 4.5, 2), gap='medium')
+def transaction_map(filtered_df):
+    st.subheader('Interactive Map of Transactions')
+    m = folium.Map(location=[39, -95], zoom_start=4)
+    G = nx.DiGraph()
 
-with col[0]:
-    st.markdown('#### Gains/Losses')
+    sender_branches = set()
+    receiver_branches = set()
 
-    df_population_difference_sorted = calculate_population_difference(df_reshaped, selected_year)
+    for idx, row in filtered_df.iterrows():
+        sender_coords = get_coordinates(row['Sender Account Branch'])
+        receiver_coords = get_coordinates(row['Receiver Account Branch'])
+        sender = row['Sender Account Branch']
+        receiver = row['Receiver Account Branch']
 
-    if selected_year > 2010:
-        first_state_name = df_population_difference_sorted.states.iloc[0]
-        first_state_population = format_number(df_population_difference_sorted.population.iloc[0])
-        first_state_delta = format_number(df_population_difference_sorted.population_difference.iloc[0])
-    else:
-        first_state_name = '-'
-        first_state_population = '-'
-        first_state_delta = ''
-    st.metric(label=first_state_name, value=first_state_population, delta=first_state_delta)
+        sender_branches.add(sender)
+        receiver_branches.add(receiver)
 
-    if selected_year > 2010:
-        last_state_name = df_population_difference_sorted.states.iloc[-1]
-        last_state_population = format_number(df_population_difference_sorted.population.iloc[-1])   
-        last_state_delta = format_number(df_population_difference_sorted.population_difference.iloc[-1])   
-    else:
-        last_state_name = '-'
-        last_state_population = '-'
-        last_state_delta = ''
-    st.metric(label=last_state_name, value=last_state_population, delta=last_state_delta)
+        if sender not in G:
+            G.add_node(sender, pos=sender_coords)
+        if receiver not in G:
+            G.add_node(receiver, pos=receiver_coords)
 
-    
-    st.markdown('#### States Migration')
+        G.add_edge(sender, receiver, weight=row['Amount'])
 
-    if selected_year > 2010:
-        # Filter states with population difference > 50000
-        # df_greater_50000 = df_population_difference_sorted[df_population_difference_sorted.population_difference_absolute > 50000]
-        df_greater_50000 = df_population_difference_sorted[df_population_difference_sorted.population_difference > 50000]
-        df_less_50000 = df_population_difference_sorted[df_population_difference_sorted.population_difference < -50000]
-        
-        # % of States with population difference > 50000
-        states_migration_greater = round((len(df_greater_50000)/df_population_difference_sorted.states.nunique())*100)
-        states_migration_less = round((len(df_less_50000)/df_population_difference_sorted.states.nunique())*100)
-        donut_chart_greater = make_donut(states_migration_greater, 'Inbound Migration', 'green')
-        donut_chart_less = make_donut(states_migration_less, 'Outbound Migration', 'red')
-    else:
-        states_migration_greater = 0
-        states_migration_less = 0
-        donut_chart_greater = make_donut(states_migration_greater, 'Inbound Migration', 'green')
-        donut_chart_less = make_donut(states_migration_less, 'Outbound Migration', 'red')
+    pos = nx.get_node_attributes(G, 'pos')
+    for node, (lat, lon) in pos.items():
+        if node in sender_branches and node in receiver_branches:
+            color = 'orange'  # Node is both sender and receiver
+        elif node in sender_branches:
+            color = 'blue'  # Node is only sender
+        elif node in receiver_branches:
+            color = 'green'  # Node is only receiver
+        else:
+            color = 'red'  # Fallback color if the logic fails
 
-    migrations_col = st.columns((0.2, 1, 0.2))
-    with migrations_col[1]:
-        st.write('Inbound')
-        st.altair_chart(donut_chart_greater)
-        st.write('Outbound')
-        st.altair_chart(donut_chart_less)
+        folium.Marker(
+            location=[lat, lon],
+            popup=node,
+            icon=folium.Icon(color=color)
+        ).add_to(m)
 
-with col[1]:
-    st.markdown('#### Total Population')
-    
-    choropleth = make_choropleth(df_selected_year, 'states_code', 'population', selected_color_theme)
-    st.plotly_chart(choropleth, use_container_width=True)
-    
-    heatmap = make_heatmap(df_reshaped, 'year', 'states', 'population', selected_color_theme)
-    st.altair_chart(heatmap, use_container_width=True)
-    
+    # Draw edges on the map
+    for u, v, data in G.edges(data=True):
+        weight = data['weight']
+        # Apply log scale (log1p for log(1 + x) to avoid log(0))
+        log_weight = np.log1p(weight/100)
+        folium.PolyLine(
+            [pos[u], pos[v]],
+            weight=log_weight,  # Use log_weight for thickness
+            color='#1EC677'
+        ).add_to(m)
 
-with col[2]:
-    st.markdown('#### Top States')
+    st_folium(m, width=700, height=500)
 
-    st.dataframe(df_selected_year_sorted,
-                 column_order=("states", "population"),
-                 hide_index=True,
-                 width=None,
-                 column_config={
-                    "states": st.column_config.TextColumn(
-                        "States",
-                    ),
-                    "population": st.column_config.ProgressColumn(
-                        "Population",
-                        format="%f",
-                        min_value=0,
-                        max_value=max(df_selected_year_sorted.population),
-                     )}
-                 )
-    
-    with st.expander('About', expanded=True):
-        st.write('''
-            - Data: [U.S. Census Bureau](https://www.census.gov/data/datasets/time-series/demo/popest/2010s-state-total.html).
-            - :orange[**Gains/Losses**]: states with high inbound/ outbound migration for selected year
-            - :orange[**States Migration**]: percentage of states with annual inbound/ outbound migration > 50,000
-            ''')
+
+def display_transactions(filtered_df):
+    st.subheader('Transaction Timeline')
+    filtered_df['Date and Time'] = pd.to_datetime(filtered_df['Date and Time'])
+    transaction_timeseries = filtered_df.groupby([pd.Grouper(
+        key='Date and Time', freq='D'), 'Transaction Type'])['Amount'].sum().reset_index()
+    transaction_timeseries = transaction_timeseries.pivot(
+        index='Date and Time', columns='Transaction Type', values='Amount').reset_index()
+    transaction_timeseries = transaction_timeseries.melt(
+        'Date and Time', var_name='Transaction Type', value_name='Amount')
+
+    timeline = alt.Chart(transaction_timeseries).mark_bar().encode(
+        x=alt.X('Date and Time:T', title='Date'),
+        y=alt.Y('Amount:Q', title='Transaction Amount'),
+        color='Transaction Type:N'
+    ).interactive()
+    st.altair_chart(timeline, use_container_width=True)
+
+
+# Display metrics with styling
+st.markdown(metric_style, unsafe_allow_html=True)
+
+
+def generate_pie_chart(df, column, title):
+    fig = px.pie(df, names=column, title=title)
+    return fig
+
+
+def generate_sankey(df):
+    # Define the nodes
+    all_nodes = list(df['Sender Account'].unique()) + \
+        list(df['Receiver Account'].unique())
+    node_labels = list(set(all_nodes))
+
+    # Define the links
+    links = []
+    for _, row in df.iterrows():
+        source = node_labels.index(row['Sender Account'])
+        target = node_labels.index(row['Receiver Account'])
+        value = row['Amount']
+        links.append({'source': source, 'target': target, 'value': value})
+
+    # Create the Sankey diagram
+    fig = go.Figure(data=[go.Sankey(
+        node=dict(
+            pad=15,
+            thickness=20,
+            line=dict(color="black", width=0.5),
+            label=node_labels,
+        ),
+        link=dict(
+            source=[link['source'] for link in links],
+            target=[link['target'] for link in links],
+            value=[link['value'] for link in links],
+        ))])
+
+    fig.update_layout(title_text="Cash Flow Diagram", font_size=12)
+    return fig
+
+
+if names or phone_numbers or acc_no:
+    colk1, colk2, colk3 = st.columns((2.7, 2.7, 2.7), gap='small')
+    with colk1:
+        st.markdown(
+            f"""
+            <div class="metric-box">
+                <div class="metric-title">Total Transactions</div>
+                <div class="metric-value">{filtered_df.shape[0]}</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with colk2:
+        st.markdown(
+            f"""
+            <div class="metric-box">
+                <div class="metric-title">Total Amount</div>
+                <div class="metric-value">{filtered_df['Amount'].sum()} USD</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with colk3:
+        st.markdown(
+            f"""
+            <div class="metric-box">
+                <div class="metric-title">Other KPI</div>
+                <div class="metric-value">123456</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    colp1, colp2, colp3, colp4 = st.columns((2, 2, 2, 2), gap='small')
+    with colp1:
+        transaction_purpose_pie = generate_pie_chart(
+            filtered_df, 'Purpose of Transaction', 'Transaction Purposes Distribution')
+        st.plotly_chart(transaction_purpose_pie, use_container_width=True)
+    with colp2:
+        transaction_type_pie = generate_pie_chart(
+            filtered_df, 'Transaction Type', 'Transaction Types Distribution')
+        st.plotly_chart(transaction_type_pie, use_container_width=True)
+    with colp3:
+        sender_name_pie = generate_pie_chart(
+            filtered_df, 'Sender Name', 'Sender Names Distribution')
+        st.plotly_chart(sender_name_pie, use_container_width=True)
+    with colp4:
+        receiver_name_pie = generate_pie_chart(
+            filtered_df, 'Receiver Name', 'Receiver Names Distribution')
+        st.plotly_chart(receiver_name_pie, use_container_width=True)
+
+    # Generate the Sankey diagram
+    sankey_fig = generate_sankey(filtered_df)
+
+    st.plotly_chart(sankey_fig, use_container_width=True)
+
+    col1, col2 = st.columns((4, 4), gap='small')
+
+    with col1:
+        transaction_map(filtered_df)
+
+    with col2:
+        summary = filtered_df.groupby('Sender Account').agg(
+            sender_name=('Sender Name', 'first'),
+            total_sent=('Amount', 'sum'),
+            # Assuming 'Amount' column is positive for both sent and received transactions
+            total_received=('Amount', 'sum'),
+            transactions_received=('ID', 'count'),
+            account_type=('Sender Account Type', 'first'),
+            branch_involved=('Sender Account Branch',
+                             lambda x: ', '.join(x.unique()))
+        ).reset_index()
+
+        st.subheader('Summary of Transactions')
+        st.dataframe(summary)
+
+    col3, col4 = st.columns((5.5, 2.5), gap='small')
+
+    with col3:
+        st.subheader('Detailed Transactions List')
+        st.dataframe(filtered_df[[
+            'ID', 'Sender Account', 'Receiver Account', 'Amount', 'Date and Time',
+            'Transaction Type', 'Purpose of Transaction'
+        ]])
+
+    with col4:
+        related_accounts = filtered_df.groupby('Receiver Account').agg(
+            total_sent=('Amount', 'sum'),
+            total_received=('Amount', 'sum')
+        ).reset_index()
+
+        st.subheader('Related Accounts')
+        st.dataframe(related_accounts)
+
+    display_transactions(filtered_df)
+else:
+    st.subheader(
+        'No transactions selected. Please select filters from the sidebar to display data.')
+    # Display empty map and tables
+    m = folium.Map(location=[39, -95], zoom_start=4)
+    st_folium(m, width=700, height=500)
+    st.subheader('Summary of Transactions')
+    st.dataframe(pd.DataFrame(columns=[
+        'Sender Account', 'total_sent', 'total_received', 'transactions_received', 'account_type', 'branch_involved'
+    ]))
+    st.subheader('Detailed Transactions List')
+    st.dataframe(pd.DataFrame(columns=[
+        'ID', 'Sender Account', 'Receiver Account', 'Amount', 'Date and Time',
+        'Transaction Type', 'Purpose of Transaction'
+    ]))
+    st.subheader('Related Accounts')
+    st.dataframe(pd.DataFrame(columns=[
+        'Receiver Account', 'total_sent', 'total_received'
+    ]))
