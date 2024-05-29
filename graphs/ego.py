@@ -14,6 +14,6 @@ def ego(filtered_df):
     G.add_edges_from(edges)
 
     # Create a PyVis network
-    g = Network(height='700px', width='100%')
+    g = Network(height='450px', width='100%')
     g.from_nx(G)
     return g

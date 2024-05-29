@@ -1,18 +1,17 @@
-import matplotlib.pyplot as plt
 import streamlit as st
 import pandas as pd
+import numpy as np
 import altair as alt
-import folium
-import networkx as nx
 from streamlit_folium import st_folium
 import streamlit.components.v1 as components
-import numpy as np
-import plotly.graph_objects as go
+
 
 from graphs.timeline import display_transactions
 from graphs.sankey import generate_sankey
 from graphs.pie import generate_pie_chart
 from graphs.ego import ego
+from graphs.map import transaction_map
+
 metric_style = """
     <style>
         .metric-box {
@@ -73,88 +72,6 @@ G = ego(filtered_df)
 # Save the network to an HTML file
 html_file_path = 'network_graph.html'
 G.write_html(html_file_path)
-
-
-def get_coordinates(branch):
-    coordinates = branch.split(', ')
-    coordinates = [float(x) for x in coordinates]
-    return coordinates
-
-
-def transaction_map(filtered_df):
-    st.subheader('Interactive Map of Transactions')
-    G = nx.DiGraph()
-
-    sender_branches = set()
-    receiver_branches = set()
-
-    for idx, row in filtered_df.iterrows():
-        sender_coords = get_coordinates(row['Sender Account Branch'])
-        receiver_coords = get_coordinates(row['Receiver Account Branch'])
-        sender_branch = row['Sender Account Branch']
-        receiver_branch = row['Receiver Account Branch']
-        sender = row['Sender Name']
-        receiver = row['Receiver Name']
-
-        sender_branches.add(sender)
-        receiver_branches.add(receiver)
-
-        if sender not in G:
-            G.add_node(sender, pos=sender_coords)
-        if receiver not in G:
-            G.add_node(receiver, pos=receiver_coords)
-
-        G.add_edge(sender, receiver, weight=row['Amount'])
-
-    pos = nx.get_node_attributes(G, 'pos')
-    edge_trace = []
-
-    sender_trace = go.Scattermapbox(
-        lat=[pos[node][0] for node in sender_branches],
-        lon=[pos[node][1] for node in sender_branches],
-        mode='markers+text',
-        marker=dict(size=10, color='blue'),
-        text=[node for node in sender_branches],
-        textposition="top center"
-    )
-
-    receiver_trace = go.Scattermapbox(
-        lat=[pos[node][0] for node in receiver_branches],
-        lon=[pos[node][1] for node in receiver_branches],
-        mode='markers+text',
-        marker=dict(size=10, color='green'),
-        text=[node for node in receiver_branches],
-        textposition="top center"
-    )
-
-    for u, v, data in G.edges(data=True):
-        lat = [pos[u][0], pos[v][0], None]
-        lon = [pos[u][1], pos[v][1], None]
-        weight = data['weight']
-        log_weight = np.log1p(weight / 1000)
-        edge_trace.append(go.Scattermapbox(
-            lat=lat,
-            lon=lon,
-            mode='lines',
-            line=dict(width=log_weight, color='#1EC677'),
-            text=[f'{u} -> {v}: ${data["weight"]}'],
-            hoverinfo='text'
-        ))
-
-    fig = go.Figure(data=edge_trace + [sender_trace, receiver_trace])
-    fig.update_layout(
-        mapbox=dict(
-            # Replace with your actual Mapbox access token
-            accesstoken='your_mapbox_access_token',
-            style="carto-positron",
-            zoom=3,
-            center=dict(lat=39, lon=-95)
-        ),
-        margin=dict(l=0, r=0, t=0, b=0),
-        showlegend=False
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
 
 
 if names or phone_numbers or acc_no:
@@ -220,7 +137,7 @@ if names or phone_numbers or acc_no:
         transaction_map(filtered_df)
 
     with col2:
-        # Read the HTML file
+        st.subheader('Ego Graph')
         with open(html_file_path, 'r', encoding='utf-8') as file:
             html_content = file.read()
 
@@ -229,19 +146,46 @@ if names or phone_numbers or acc_no:
 
     display_transactions(filtered_df)
 
-    summary = filtered_df.groupby('Sender Account').agg(
+    summary_sent = filtered_df.groupby('Sender Account').agg(
         sender_name=('Sender Name', 'first'),
         total_sent=('Amount', 'sum'),
-        # Assuming 'Amount' column is positive for both sent and received transactions
-        total_received=('Amount', 'sum'),
-        transactions_received=('ID', 'count'),
-        account_type=('Sender Account Type', 'first'),
-        branch_involved=('Sender Account Branch',
-                         lambda x: ', '.join(x.unique()))
+        transactions_sent=('ID', 'count'),
+        account_type_sent=('Sender Account Type', 'first'),
+        branch_involved_sent=('Sender Account Branch',
+                              lambda x: ', '.join(x.unique()))
     ).reset_index()
 
+    summary_received = filtered_df.groupby('Receiver Account').agg(
+        receiver_name=('Receiver Name', 'first'),
+        total_received=('Amount', 'sum'),
+        transactions_received=('ID', 'count'),
+        account_type_received=('Receiver Account Type', 'first'),
+        branch_involved_received=('Receiver Account Branch',
+                                  lambda x: ', '.join(x.unique()))
+    ).reset_index()
+
+    # Join the two DataFrames based on the condition 'Sender Name' == 'Receiver Name'
+    merged_summary = pd.merge(
+        summary_sent,
+        summary_received,
+        how='outer',
+        left_on='sender_name',
+        right_on='receiver_name',
+        # Use an empty string for the sender suffix
+        suffixes=('', '_receiver'),
+    )
+
+    # Create a new 'name' column based on the condition 'sender_name' == 'receiver_name'
+    merged_summary['name'] = np.where(merged_summary['sender_name'] == merged_summary['receiver_name'],
+                                      merged_summary['sender_name'],
+                                      merged_summary['sender_name'].fillna(merged_summary['receiver_name']))
+
+    # Drop the 'sender_name' and 'receiver_name' columns
+    merged_summary = merged_summary.drop(
+        ['sender_name', 'receiver_name'], axis=1)
+
     st.subheader('Summary of Transactions')
-    st.dataframe(summary)
+    st.dataframe(merged_summary)
     st.subheader('Detailed Transactions List')
     st.dataframe(filtered_df[[
         'ID', 'Sender Account', 'Sender Name', 'Receiver Account', 'Receiver Name', 'Amount', 'Date and Time',
@@ -291,3 +235,5 @@ else:
             """,
             unsafe_allow_html=True
         )
+    st.warning(
+        'Please enter names or phone numbers, or account numbers to view the data.')
