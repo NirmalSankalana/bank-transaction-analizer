@@ -1,0 +1,155 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+            <script src="lib/bindings/utils.js"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+        
+<center>
+<h1></h1>
+</center>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+          crossorigin="anonymous"
+        />
+        <script
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+          crossorigin="anonymous"
+        ></script>
+
+
+        <center>
+          <h1></h1>
+        </center>
+        <style type="text/css">
+
+             #mynetwork {
+                 width: 100%;
+                 height: 700px;
+                 background-color: #ffffff;
+                 border: 1px solid lightgray;
+                 position: relative;
+                 float: left;
+             }
+
+             
+
+             
+
+             
+        </style>
+    </head>
+
+
+    <body>
+        <div class="card" style="width: 100%">
+            
+            
+            <div id="mynetwork" class="card-body"></div>
+        </div>
+
+        
+        
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+
+              
+
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+
+                  
+
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{"color": "#97c2fc", "id": "Emily Edwards", "label": "Emily Edwards", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Tammy Charles", "label": "Tammy Charles", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Shelly Morris", "label": "Shelly Morris", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Scott Bass", "label": "Scott Bass", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Rebecca Pierce", "label": "Rebecca Pierce", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Justin Hall", "label": "Justin Hall", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Travis Banks", "label": "Travis Banks", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Heather Williams", "label": "Heather Williams", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Natalie Wilson", "label": "Natalie Wilson", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Taylor Jackson", "label": "Taylor Jackson", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Stephanie Paul", "label": "Stephanie Paul", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Jordan Flores", "label": "Jordan Flores", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Terry Pruitt", "label": "Terry Pruitt", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Mr. Dean Warren", "label": "Mr. Dean Warren", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Ryan Parker", "label": "Ryan Parker", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Rebecca Buchanan", "label": "Rebecca Buchanan", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Luke Nguyen", "label": "Luke Nguyen", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Anthony Bailey", "label": "Anthony Bailey", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Angela Henderson", "label": "Angela Henderson", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Christopher Williams", "label": "Christopher Williams", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Amber Miles", "label": "Amber Miles", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Brenda Smith", "label": "Brenda Smith", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Dominic Wilson", "label": "Dominic Wilson", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Tara Davis", "label": "Tara Davis", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Gary Young", "label": "Gary Young", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Elizabeth May", "label": "Elizabeth May", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Karen Davis", "label": "Karen Davis", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Jennifer Chen", "label": "Jennifer Chen", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "David Sharp", "label": "David Sharp", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Jamie Gray", "label": "Jamie Gray", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Louis Wright", "label": "Louis Wright", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Vicki Duncan", "label": "Vicki Duncan", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Sharon Obrien", "label": "Sharon Obrien", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Jeanette Lawrence", "label": "Jeanette Lawrence", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Lori Parker", "label": "Lori Parker", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Michael Martinez Jr.", "label": "Michael Martinez Jr.", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Micheal Morgan", "label": "Micheal Morgan", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Kristen Gutierrez", "label": "Kristen Gutierrez", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Linda Gomez", "label": "Linda Gomez", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Robin Obrien", "label": "Robin Obrien", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Michael Hamilton", "label": "Michael Hamilton", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Kevin White", "label": "Kevin White", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Jessica Jones", "label": "Jessica Jones", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Kevin Johnson", "label": "Kevin Johnson", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Mike Carrillo", "label": "Mike Carrillo", "shape": "dot", "size": 10}, {"color": "#97c2fc", "id": "Elijah Long", "label": "Elijah Long", "shape": "dot", "size": 10}]);
+                  edges = new vis.DataSet([{"from": "Emily Edwards", "to": "Tammy Charles", "width": 1}, {"from": "Shelly Morris", "to": "Scott Bass", "width": 1}, {"from": "Rebecca Pierce", "to": "Justin Hall", "width": 1}, {"from": "Travis Banks", "to": "Heather Williams", "width": 1}, {"from": "Travis Banks", "to": "Natalie Wilson", "width": 1}, {"from": "Travis Banks", "to": "Taylor Jackson", "width": 1}, {"from": "Stephanie Paul", "to": "Jordan Flores", "width": 1}, {"from": "Terry Pruitt", "to": "Mr. Dean Warren", "width": 1}, {"from": "Terry Pruitt", "to": "Ryan Parker", "width": 1}, {"from": "Terry Pruitt", "to": "Rebecca Buchanan", "width": 1}, {"from": "Terry Pruitt", "to": "Scott Bass", "width": 1}, {"from": "Luke Nguyen", "to": "Anthony Bailey", "width": 1}, {"from": "Angela Henderson", "to": "Christopher Williams", "width": 1}, {"from": "Angela Henderson", "to": "Amber Miles", "width": 1}, {"from": "Brenda Smith", "to": "Dominic Wilson", "width": 1}, {"from": "Tara Davis", "to": "Gary Young", "width": 1}, {"from": "Elizabeth May", "to": "Karen Davis", "width": 1}, {"from": "Elizabeth May", "to": "Scott Bass", "width": 1}, {"from": "Jennifer Chen", "to": "Scott Bass", "width": 1}, {"from": "David Sharp", "to": "Scott Bass", "width": 1}, {"from": "David Sharp", "to": "Jamie Gray", "width": 1}, {"from": "Louis Wright", "to": "Vicki Duncan", "width": 1}, {"from": "Sharon Obrien", "to": "Scott Bass", "width": 1}, {"from": "Jeanette Lawrence", "to": "Lori Parker", "width": 1}, {"from": "Michael Martinez Jr.", "to": "Micheal Morgan", "width": 1}, {"from": "Kristen Gutierrez", "to": "Linda Gomez", "width": 1}, {"from": "Robin Obrien", "to": "Scott Bass", "width": 1}, {"from": "Michael Hamilton", "to": "Kevin White", "width": 1}, {"from": "Jessica Jones", "to": "Kevin Johnson", "width": 1}, {"from": "Mike Carrillo", "to": "Elijah Long", "width": 1}]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {
+    "configure": {
+        "enabled": false
+    },
+    "edges": {
+        "color": {
+            "inherit": true
+        },
+        "smooth": {
+            "enabled": true,
+            "type": "dynamic"
+        }
+    },
+    "interaction": {
+        "dragNodes": true,
+        "hideEdgesOnDrag": false,
+        "hideNodesOnDrag": false
+    },
+    "physics": {
+        "enabled": true,
+        "stabilization": {
+            "enabled": true,
+            "fit": true,
+            "iterations": 1000,
+            "onlyDynamicEdges": false,
+            "updateInterval": 50
+        }
+    }
+};
+
+                  
+
+
+                  
+
+                  network = new vis.Network(container, data, options);
+
+                  
+
+                  
+
+                  
+
+
+                  
+
+                  return network;
+
+              }
+              drawGraph();
+        </script>
+    </body>
+</html>
