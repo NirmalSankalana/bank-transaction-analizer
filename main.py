@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import altair as alt
-from streamlit_folium import st_folium
 import streamlit.components.v1 as components
 
 
