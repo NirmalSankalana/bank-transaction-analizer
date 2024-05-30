@@ -11,6 +11,16 @@ from graphs.pie import generate_pie_chart
 from graphs.ego import ego
 from graphs.map import transaction_map
 
+from transformations.summary import summary_of_transactions, transactions
+
+PATH = 'data/bank-transactions.csv'
+
+
+@st.cache_data
+def load_dataset(PATH):
+    return pd.read_csv(PATH)
+
+
 metric_style = """
     <style>
         .metric-box {
@@ -42,7 +52,7 @@ alt.themes.enable("dark")
 # Display metrics with styling
 st.markdown(metric_style, unsafe_allow_html=True)
 # Load the data
-df = pd.read_csv('data/bank-transactions.csv')
+df = load_dataset(PATH)
 
 with st.sidebar:
     st.title('Bank Transactions Dashboard')
@@ -145,59 +155,8 @@ if names or phone_numbers or acc_no:
 
     display_transactions(filtered_df)
 
-    summary_sent = filtered_df.groupby('Sender Account').agg(
-        sender_name=('Sender Name', 'first'),
-        total_sent=('Amount', 'sum'),
-        transactions_sent=('ID', 'count'),
-        account_type_sent=('Sender Account Type', 'first'),
-        branch_involved_sent=('Sender Account Branch',
-                              lambda x: ', '.join(x.unique()))
-    ).reset_index()
-
-    summary_received = filtered_df.groupby('Receiver Account').agg(
-        receiver_name=('Receiver Name', 'first'),
-        total_received=('Amount', 'sum'),
-        transactions_received=('ID', 'count'),
-        account_type_received=('Receiver Account Type', 'first'),
-        branch_involved_received=('Receiver Account Branch',
-                                  lambda x: ', '.join(x.unique()))
-    ).reset_index()
-
-    # Join the two DataFrames based on the condition 'Sender Name' == 'Receiver Name'
-    merged_summary = pd.merge(
-        summary_sent,
-        summary_received,
-        how='outer',
-        left_on='sender_name',
-        right_on='receiver_name',
-        # Use an empty string for the sender suffix
-        suffixes=('', '_receiver'),
-    )
-
-    # Create a new 'name' column based on the condition 'sender_name' == 'receiver_name'
-    merged_summary['name'] = np.where(merged_summary['sender_name'] == merged_summary['receiver_name'],
-                                      merged_summary['sender_name'],
-                                      merged_summary['sender_name'].fillna(merged_summary['receiver_name']))
-
-    # Drop the 'sender_name' and 'receiver_name' columns
-    merged_summary = merged_summary.drop(
-        ['sender_name', 'receiver_name'], axis=1)
-
-    st.subheader('Summary of Transactions')
-    st.dataframe(merged_summary)
-    st.subheader('Detailed Transactions List')
-    st.dataframe(filtered_df[[
-        'ID', 'Sender Account', 'Sender Name', 'Receiver Account', 'Receiver Name', 'Amount', 'Date and Time',
-        'Transaction Type', 'Purpose of Transaction'
-    ]])
-
-    # related_accounts = filtered_df.groupby('Receiver Account').agg(
-    #     total_sent=('Amount', 'sum'),
-    #     total_received=('Amount', 'sum')
-    # ).reset_index()
-
-    # st.subheader('Related Accounts')
-    # st.dataframe(related_accounts)
+    summary_of_transactions(df, filtered_df)
+    transactions(filtered_df)
 
 
 else:
