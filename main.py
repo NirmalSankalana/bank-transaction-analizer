@@ -76,12 +76,6 @@ if acc_no:
     filtered_df = filtered_df[filtered_df['Sender Account'].isin(acc_no) | filtered_df['Receiver Account'].isin(
         acc_no)]
 
-G = ego(filtered_df)
-
-# Save the network to an HTML file
-html_file_path = 'network_graph.html'
-G.write_html(html_file_path)
-
 
 if names or phone_numbers or acc_no:
     colk1, colk2, colk3 = st.columns((2.7, 2.7, 2.7), gap='medium')
@@ -147,6 +141,11 @@ if names or phone_numbers or acc_no:
 
     with col2:
         st.subheader('Ego Graph')
+        G = ego(filtered_df)
+
+        # Save the network to an HTML file
+        html_file_path = 'network_graph.html'
+        G.write_html(html_file_path)
         with open(html_file_path, 'r', encoding='utf-8') as file:
             html_content = file.read()
 

@@ -1,6 +1,37 @@
 import pandas as pd
 import streamlit as st
-from st_aggrid import AgGrid, GridOptionsBuilder
+
+# Function to add icons based on transaction types
+
+
+def add_transaction_type_icons(transaction_type):
+    if transaction_type == 'Debit':
+        return f"🔴 {transaction_type}"
+    elif transaction_type == 'Credit':
+        return f"🟢 {transaction_type}"
+    else:
+        return transaction_type
+
+# Function to add icons based on purposes of transactions
+
+
+def add_purpose_icons(purpose):
+    if 'Salary' in purpose:
+        return f"💼 {purpose}"
+    elif 'Refund' in purpose:
+        return f"💸 {purpose}"
+    elif 'Purchase' in purpose:
+        return f"🛒 {purpose}"
+    elif 'Payment' in purpose:
+        return f"💳 {purpose}"
+    elif 'Transfer' in purpose:
+        return f"💰 {purpose}"
+    elif 'Gift' in purpose:
+        return f"🎁 {purpose}"
+    else:
+        return purpose
+
+# Function to generate the summary of transactions
 
 
 def summary_of_transactions(df, filtered_df):
@@ -36,8 +67,8 @@ def summary_of_transactions(df, filtered_df):
 
         branches_involved_sent = sent_transactions.groupby('Receiver Account Branch')[
             'Amount'].sum().to_dict() if len(sent_transactions) > 0 else '-'
-        branches_involved_received = received_transactions.groupby(
-            'Sender Account Branch')['Amount'].sum().to_dict() if len(received_transactions) > 0 else '-'
+        branches_involved_received = received_transactions.groupby('Sender Account Branch')[
+            'Amount'].sum().to_dict() if len(received_transactions) > 0 else '-'
 
         summary_data.append({
             'Account Number': account,
@@ -53,26 +84,46 @@ def summary_of_transactions(df, filtered_df):
 
     summary_df = pd.DataFrame(summary_data)
 
-    # Add icons for total sent and received
-    summary_df['Total Sent'] = summary_df['Total Sent'].apply(
-        lambda x: f'💸 {x}')
-    summary_df['Total Received'] = summary_df['Total Received'].apply(
-        lambda x: f'💰 {x}')
+    # Ensure columns exist before applying transformations
+    if 'Total Sent' in summary_df.columns:
+        summary_df['Total Sent'] = summary_df['Total Sent'].apply(
+            lambda x: f'💸 {x}')
+    else:
+        st.error("Column 'Total Sent' not found in DataFrame")
 
-    # Add icons for transaction counts
-    summary_df['No. of Transactions Received'] = summary_df['No. of Transactions Received'].apply(
-        lambda x: f'📥 {x}')
-    summary_df['No. of Transactions Sent'] = summary_df['No. of Transactions Sent'].apply(
-        lambda x: f'📤 {x}')
+    if 'Total Received' in summary_df.columns:
+        summary_df['Total Received'] = summary_df['Total Received'].apply(
+            lambda x: f'💰 {x}')
+    else:
+        st.error("Column 'Total Received' not found in DataFrame")
+
+    if 'No. of Transactions Received' in summary_df.columns:
+        summary_df['No. of Transactions Received'] = summary_df['No. of Transactions Received'].apply(
+            lambda x: f'📥 {x}')
+    else:
+        st.error("Column 'No. of Transactions Received' not found in DataFrame")
+
+    if 'No. of Transactions Sent' in summary_df.columns:
+        summary_df['No. of Transactions Sent'] = summary_df['No. of Transactions Sent'].apply(
+            lambda x: f'📤 {x}')
+    else:
+        st.error("Column 'No. of Transactions Sent' not found in DataFrame")
 
     # Convert branch involvement dictionaries to JSON strings
-    summary_df['Branches Involved (Sent)'] = summary_df['Branches Involved (Sent)'].apply(
-        lambda x: str(x) if isinstance(x, dict) else x)
-    summary_df['Branches Involved (Received)'] = summary_df['Branches Involved (Received)'].apply(
-        lambda x: str(x) if isinstance(x, dict) else x)
+    if 'Branches Involved (Sent)' in summary_df.columns:
+        summary_df['Branches Involved (Sent)'] = summary_df['Branches Involved (Sent)'].apply(
+            lambda x: str(x) if isinstance(x, dict) else x)
+    else:
+        st.error("Column 'Branches Involved (Sent)' not found in DataFrame")
+
+    if 'Branches Involved (Received)' in summary_df.columns:
+        summary_df['Branches Involved (Received)'] = summary_df['Branches Involved (Received)'].apply(
+            lambda x: str(x) if isinstance(x, dict) else x)
+    else:
+        st.error("Column 'Branches Involved (Received)' not found in DataFrame")
 
     st.subheader('Summary of Transactions')
-    AgGrid(summary_df)
+    st.dataframe(summary_df)
 
 
 def transactions(df):
@@ -80,5 +131,12 @@ def transactions(df):
     df = df[[
         'ID', 'Sender Account', 'Sender Name', 'Receiver Account', 'Receiver Name', 'Amount', 'Date and Time',
         'Transaction Type', 'Purpose of Transaction'
-    ]]
-    AgGrid(df)
+    ]].copy()
+
+    # Apply icons to transaction types and purposes
+    df.loc[:, 'Transaction Type'] = df['Transaction Type'].apply(
+        add_transaction_type_icons)
+    df.loc[:, 'Purpose of Transaction'] = df['Purpose of Transaction'].apply(
+        add_purpose_icons)
+
+    st.dataframe(df)
