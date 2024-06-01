@@ -64,17 +64,27 @@ with st.sidebar:
 
 filtered_df = df.copy()
 
-# Apply filters conditionally
+filtered_dfs = []
+
 if names:
-    filtered_df = filtered_df[filtered_df['Sender Name'].isin(
+    filtered_df_1 = filtered_df[filtered_df['Sender Name'].isin(
         names) | filtered_df['Receiver Name'].isin(names)]
+    filtered_dfs.append(filtered_df_1)
+
 if phone_numbers:
-    filtered_df = filtered_df[filtered_df['Sender Phone Number'].isin(
-        phone_numbers) | filtered_df['Receiver Phone Number'].isin(
-            phone_numbers)]
+    filtered_df_2 = filtered_df[filtered_df['Sender Phone Number'].isin(
+        phone_numbers) | filtered_df['Receiver Phone Number'].isin(phone_numbers)]
+    filtered_dfs.append(filtered_df_2)
+
 if acc_no:
-    filtered_df = filtered_df[filtered_df['Sender Account'].isin(acc_no) | filtered_df['Receiver Account'].isin(
-        acc_no)]
+    filtered_df_3 = filtered_df[filtered_df['Sender Account'].isin(
+        acc_no) | filtered_df['Receiver Account'].isin(acc_no)]
+    filtered_dfs.append(filtered_df_3)
+
+# Concatenate all filtered dataframes, avoiding duplicate columns
+if filtered_dfs:
+    filtered_df = pd.concat(filtered_dfs, axis=0).loc[:, ~pd.concat(
+        filtered_dfs, axis=0).columns.duplicated()]
 
 
 if names or phone_numbers or acc_no:
@@ -105,8 +115,10 @@ if names or phone_numbers or acc_no:
         st.markdown(
             f"""
             <div class="metric-box">
-                <div class="metric-title">Other KPI</div>
-                <div class="metric-value">123456</div>
+                <div class="metric-title">No. of Involved</div>
+                <div class="metric-value">{len(np.unique(
+    np.concatenate([filtered_df['Sender Account'].unique(), filtered_df['Receiver Account'].unique()])
+        ))}</div>
             </div>
             """,
             unsafe_allow_html=True
@@ -150,7 +162,7 @@ if names or phone_numbers or acc_no:
             html_content = file.read()
 
         # Display the HTML content in Streamlit
-        components.html(html_content, height=500, width=700)
+        components.html(html_content, height=450, width=700)
 
     display_transactions(filtered_df)
 
@@ -186,7 +198,7 @@ else:
         st.markdown(
             f"""
             <div class="metric-box">
-                <div class="metric-title">Other KPI</div>
+                <div class="metric-title">No. of Involved</div>
                 <div class="metric-value"></div>
             </div>
             """,

@@ -3,6 +3,10 @@ import networkx as nx
 import plotly.graph_objects as go
 import numpy as np
 
+ARROW_COLOR = "#0077b6"
+SENDER_COLOR = "red"
+RECEIVER_COLOR = "#70e000"
+
 
 @st.cache_data
 def get_coordinates(branch):
@@ -13,29 +17,42 @@ def get_coordinates(branch):
 
 def add_arrow_trace(lat, lon, weight, sender, receiver):
     log_weight = np.log1p(weight / 1000)
-    arrow_size = log_weight / 5
 
-    # Calculate direction vector
-    direction = np.array([lat[1] - lat[0], lon[1] - lon[0]])
-    norm = np.linalg.norm(direction)
-    if norm == 0:  # Prevent division by zero
-        norm = 1
-    direction = direction / norm
+    # Calculate the direction vector
+    A = np.array([lon[0], lat[0]])
+    B = np.array([lon[1], lat[1]])
+    v = B - A
+    w = v / np.linalg.norm(v)  # Normalize the vector
+    u = np.array([-v[1], v[0]])  # Perpendicular vector
 
-    # Calculate arrowhead position
-    arrowhead_lat = lat[1] - direction[0] * arrow_size * 0.5
-    arrowhead_lon = lon[1] - direction[1] * arrow_size * 0.5
+    # Arrowhead parameters
+    arrow_length = log_weight * 0.2
+    arrow_width = arrow_length * 0.05
 
-    return go.Scattermapbox(
-        lat=[lat[0], lat[1], arrowhead_lat],
-        lon=[lon[0], lon[1], arrowhead_lon],
-        mode='lines+markers',
-        line=dict(width=log_weight, color='#1EC677'),
-        marker=dict(size=[0, 0, arrow_size], color='#1EC677',
-                    symbol=['circle', 'circle', 'triangle']),
-        text=[f'{sender} -> {receiver}: ${weight}'],
-        hoverinfo='text'
-    )
+    # Calculate arrowhead points
+    P = B - arrow_length * w
+    S = P - arrow_width * u
+    T = P + arrow_width * u
+
+    return [
+        go.Scattermapbox(
+            lat=lat,
+            lon=lon,
+            mode='lines',
+            line=dict(width=log_weight, color=ARROW_COLOR),
+            text=[f'{sender} -> {receiver}: ${weight}'],
+            hoverinfo='text'
+        ),
+        go.Scattermapbox(
+            lon=[S[0], T[0], B[0], S[0]],
+            lat=[S[1], T[1], B[1], S[1]],
+            mode='lines',
+            fill='toself',
+            fillcolor=ARROW_COLOR,
+            line_color=ARROW_COLOR,
+            hoverinfo='skip'
+        )
+    ]
 
 
 def transaction_map(filtered_df):
@@ -70,7 +87,7 @@ def transaction_map(filtered_df):
         lat=[pos[node][0] for node in sender_branches],
         lon=[pos[node][1] for node in sender_branches],
         mode='markers+text',
-        marker=dict(size=10, color='red'),
+        marker=dict(size=10, color=SENDER_COLOR),
         text=[node for node in sender_branches],
         textposition="top center"
     )
@@ -79,7 +96,7 @@ def transaction_map(filtered_df):
         lat=[pos[node][0] for node in receiver_branches],
         lon=[pos[node][1] for node in receiver_branches],
         mode='markers+text',
-        marker=dict(size=10, color='green'),
+        marker=dict(size=10, color=RECEIVER_COLOR),
         text=[node for node in receiver_branches],
         textposition="top center"
     )
@@ -88,7 +105,7 @@ def transaction_map(filtered_df):
         lat = [pos[u][0], pos[v][0]]
         lon = [pos[u][1], pos[v][1]]
         weight = data['weight']
-        edge_trace.append(add_arrow_trace(lat, lon, weight, u, v))
+        edge_trace.extend(add_arrow_trace(lat, lon, weight, u, v))
 
     fig = go.Figure(data=edge_trace + [sender_trace, receiver_trace])
     fig.update_layout(
