@@ -13,12 +13,12 @@ from graphs.map import transaction_map
 
 from transformations.summary import summary_of_transactions, transactions
 
-PATH = 'data/bank-transactions.csv'
+PATH = 'data/Data.xlsx'
 
 
 @st.cache_data
 def load_dataset(PATH):
-    return pd.read_csv(PATH)
+    return pd.read_excel(PATH)
 
 
 metric_style = """
@@ -54,13 +54,18 @@ st.markdown(metric_style, unsafe_allow_html=True)
 # Load the data
 df = load_dataset(PATH)
 
+combined_names = sorted(set(df['Sender Name']).union(set(df['Receiver Name'])))
+combined_phone_numbers = sorted(
+    set(df['Sender Phone Number']).union(set(df['Receiver Phone Number'])))
+combined_acc_no = sorted(
+    set(df['Sender Account']).union(set(df['Receiver Account'])))
+
 with st.sidebar:
     st.title('Bank Transactions Dashboard')
-    names = st.multiselect('Select a name', df['Sender Name'].unique())
+    names = st.multiselect('Select a name', combined_names)
     phone_numbers = st.multiselect(
-        'Select a phone number', df['Sender Phone Number'].unique())
-    acc_no = st.multiselect('Select an account number',
-                            df['Sender Account'].unique())
+        'Select a phone number', combined_phone_numbers)
+    acc_no = st.multiselect('Select an account number', combined_acc_no)
 
 filtered_df = df.copy()
 
